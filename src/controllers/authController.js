@@ -1,8 +1,10 @@
 import User from '../model/user.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { parsePhoneNumberFromString   } from 'libphonenumber-js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
+import { parsePhoneNumberFromString, getCountries } from 'libphonenumber-js';
+
+
 
 
 export const registration = async (req, res) => {
@@ -12,26 +14,36 @@ export const registration = async (req, res) => {
     if (!(email && password && firstName && lastName && phoneNumber && country)) {
       return res.status(400).json({ message: 'All input is required' });
     }
-    // Normalize email and phone number
-    email = email.toLowerCase().trim();
-    phoneNumber = phoneNumber.toString().trim();
 
-    // 📞 Validate phone number
+    // Normalize inputs
+    email = email.toLowerCase().trim();
+    phoneNumber = String(phoneNumber).trim();
+
+    // Validate country code
+    const validCountries = getCountries();
+    if (!validCountries.includes(country)) {
+      return res.status(400).json({ message: 'Invalid country code' });
+    }
+
+    // Validate phone number
     const phoneNumberObj = parsePhoneNumberFromString(phoneNumber, country);
     if (!phoneNumberObj || !phoneNumberObj.isValid()) {
       return res.status(400).json({ message: 'Invalid phone number format' });
     }
-    const formattedPhone = phoneNumberObj.format('E.164'); // Format to E.164 standard
+    const formattedPhone = phoneNumberObj.format('E.164');
 
-
-    // Continue with your logic...
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    // Check for existing user
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { phoneNumber: formattedPhone },
+      ],
+    });
     if (existingUser) {
-      return res.status(409).json({ message: 'User already exists. Please login.' });
+      return res.status(409).json({ message: 'Email or phone number already exists. Please login.' });
     }
 
-    //const encryptedPassword = await bcrypt.hash(password, 10);
-
+    // Create user
     const user = await User.create({
       firstName,
       lastName,
@@ -42,15 +54,14 @@ export const registration = async (req, res) => {
       wallets: [{ currency: 'USD', balance: 0 }],
     });
 
+    // Generate JWT token
     const token = jwt.sign(
       { user_id: user._id, email },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    user.token = token;
-
-    res.status(201).json({ message: 'User registered successfully' });
+    res.status(201).json({ message: 'User registered successfully', token });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: error.message });

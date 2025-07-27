@@ -1,28 +1,37 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 const { Schema } = mongoose;
 
 const UserSchema = new Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
-  phoneNumber: { type: Number, required: true, unique: true },
+  phoneNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    validate: {
+      validator: function (v) {
+        const phoneNumberObj = parsePhoneNumberFromString(v, this.country);
+        return phoneNumberObj ? phoneNumberObj.isValid() : false;
+      },
+      message: 'Invalid phone number format',
+    },
+  },
   email: { type: String, required: true, unique: true },
-  country: {type: String},
+  country: { type: String },
   password: { type: String, required: true },
   wallets: [
     {
-      currency: {type: String},
-      balance: {type: Number, default: 0}
-    }
+      currency: { type: String },
+      balance: { type: Number, default: 0 },
+    },
   ],
-},
-{timestamps: true}
-);
+}, { timestamps: true });
 
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next(); // Avoid re-hashing
-
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
