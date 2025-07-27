@@ -4,14 +4,14 @@ import jwt from 'jsonwebtoken';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { parsePhoneNumberFromString, getCountries } from 'libphonenumber-js';
 
-
-
-
 export const registration = async (req, res) => {
   try {
-    let { firstName, lastName, email, phoneNumber, password, country } = req.body;
+    let { firstName, lastName, email, phoneNumber, password, country } =
+      req.body;
 
-    if (!(email && password && firstName && lastName && phoneNumber && country)) {
+    if (
+      !(email && password && firstName && lastName && phoneNumber && country)
+    ) {
       return res.status(400).json({ message: 'All input is required' });
     }
 
@@ -34,13 +34,14 @@ export const registration = async (req, res) => {
 
     // Check for existing user
     const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { phoneNumber: formattedPhone },
-      ],
+      $or: [{ email: email.toLowerCase() }, { phoneNumber: formattedPhone }],
     });
     if (existingUser) {
-      return res.status(409).json({ message: 'Email or phone number already exists. Please login.' });
+      return res
+        .status(409)
+        .json({
+          message: 'Email or phone number already exists. Please login.',
+        });
     }
 
     // Create user
@@ -68,28 +69,27 @@ export const registration = async (req, res) => {
   }
 };
 
-
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "All fields are required" });
+        .json({ success: false, message: 'All fields are required' });
     }
     const user = await User.findOne({ email: email.toLowerCase() });
     //console.log("User found:", user); // Debug log
     if (!user) {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid credentials" });
+        .json({ success: false, message: 'Invalid credentials' });
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
     //console.log("Password match:", passwordMatch); // Debug log
     if (!passwordMatch) {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid credentials" });
+        .json({ success: false, message: 'Invalid credentials' });
     }
     // Generate JWT token
     const token = jwt.sign(
@@ -100,7 +100,12 @@ export const login = async (req, res) => {
 
     req.session.loggedIn = true;
     req.session.userName = user.firstName;
-    res.json({ success: true, name: user.firstName , token, user: sanitizeUser(user) });
+    res.json({
+      success: true,
+      name: user.firstName,
+      token,
+      user: sanitizeUser(user),
+    });
   } catch (error) {
     console.error(error.message);
     res.status(400).json({
@@ -175,7 +180,6 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-
 export const getAllNigerianUsers = async (req, res) => {
   try {
     const nigerianUsers = await User.find({ country: 'Nigeria' });
@@ -187,5 +191,4 @@ export const getAllNigerianUsers = async (req, res) => {
     console.error('Error fetching Nigerian users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
-
+};
