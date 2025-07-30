@@ -43,17 +43,26 @@ export const registration = async (req, res) => {
           message: 'Email or phone number already exists. Please login.',
         });
     }
+    const countryCurrencyMap = {
+      NG: "NGN",
+      US: "USD",
+      UK: "GBP",
+      GM: "GMD",
+
+    }
+    const walletCurrency = countryCurrencyMap[country] || 'USD'; // Default to USD if country not mapped
 
     // Create user
-    const user = await User.create({
+    const user = new User({
       firstName,
       lastName,
       email: email.toLowerCase(),
       password,
       country,
       phoneNumber: formattedPhone,
-      wallets: [{ currency: 'USD', balance: 0 }],
+      wallets: [{ currency: walletCurrency, balance: 0 }],
     });
+    await user.save(); // ensures pre-save hook runs
 
     // Generate JWT token
     const token = jwt.sign(
@@ -93,7 +102,7 @@ export const login = async (req, res) => {
     }
     // Generate JWT token
     const token = jwt.sign(
-      { user_id: user._id, email: user.email },
+      { userId: user._id, email: user.email }, // Change user_id to userId
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
