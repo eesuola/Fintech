@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import session from "express-session";
 import authRoutes from './routes/auth.js'
 import walletRoutes from './routes/wallet.js'
+import bankRoutes from './routes/bank.routes.js'
 
 
 dotenv.config();
@@ -26,7 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth",authRoutes);
 app.use("/api/wallet",walletRoutes);
-
+app.use("/api/bank", bankRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({

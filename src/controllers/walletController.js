@@ -73,58 +73,98 @@ export const withdraw = async (req, res) => {
 };
 
 export const transfer = async (req, res) => {
-  const { toEmail, currency, amount } = req.body;
-  if (!toEmail || !currency || !amount || amount <= 0) {
-    return res.status(400).json({ message: 'Invalid input' });
+  const { receiverEmail, fromCurrency, toCurrency, amount } = req.body;
+
+  if (!receiverEmail || !fromCurrency || !toCurrency || !amount || amount <= 0) {
+    return res.status(400).json({ message: 'Please provide valid transfer details' });
   }
+
   try {
-    const fromUser = await User.findById(req.userId);
-    const toUser = await User.findOne({ email: toEmail.toLowerCase() });
-    if (!fromUser || !toUser)
-      return res.status(404).json({ message: 'User not found' });
+    const sender = await User.findById(req.userId);
+    const receiver = await User.findOne({ email: receiverEmail });
 
-    const fromWallet = fromUser.wallets.find((w) => w.currency === currency);
-    if (!fromWallet || fromWallet.balance < amount) {
-      return res.status(400).json({ message: 'Insufficient balance' });
+    if (!sender) return res.status(404).json({ message: 'Sender not found' });
+    if (!receiver) return res.status(404).json({ message: 'Receiver not found' });
+
+    const senderWallet = sender.wallets.find(w => w.currency === fromCurrency);
+    if (!senderWallet) {
+      return res.status(400).json({ message: 'Sender wallet not found' });
     }
-    let toWallet = toUser.wallets.find((w) => w.currency === currency);
-    if (toWallet) {
-      toWallet.balance += amount;
+
+    // Calculate charge
+    const chargeRate = 0.01; // 1%
+    const charge = amount * chargeRate;
+    const totalDeduct = amount + charge;
+
+    if (senderWallet.balance < totalDeduct) {
+      return res.status(400).json({ message: 'Insufficient balance (including charges)' });
+    }
+
+    let convertedAmount = amount;
+
+    // Currency conversion if needed
+    if (fromCurrency !== toCurrency) {
+      const apiKey = process.env.EXCHANGE_API_KEY;
+      const apiUrl = `https://api.exchangerate.host/convert?from=${fromCurrency}&to=${toCurrency}&amount=${amount}&access_key=${apiKey}`;
+      const { data } = await axios.get(apiUrl);
+      if (!data || !data.result) {
+        return res.status(500).json({ message: 'Conversion failed. Try again.' });
+      }
+      convertedAmount = data.result;
+    }
+
+    // Deduct from sender
+    senderWallet.balance -= totalDeduct;
+
+    // Add to receiver
+    let receiverWallet = receiver.wallets.find(w => w.currency === toCurrency);
+    if (receiverWallet) {
+      receiverWallet.balance += convertedAmount;
     } else {
-      toWallet = { currency, balance: amount };
-      toUser.wallets.push(toWallet);
+      receiver.wallets.push({ currency: toCurrency, balance: convertedAmount });
     }
-    fromWallet.balance -= amount;
 
-    await fromUser.save();
-    await toUser.save();
+    await sender.save();
+    await receiver.save();
 
     // Record transactions for both users
     await Transaction.create([
       {
-        user: fromUser._id,
+        user: sender._id,
         type: 'Transfer',
-        currency,
+        currency: fromCurrency,
         amount,
-        toUser: toUser._id,
-        description: `Transfer to ${toUser.email}`,
+        toUser: receiver._id,
+        description: `Transfer to ${receiver.email} (${amount} ${fromCurrency} to ${convertedAmount} ${toCurrency}), charge: ${charge}`,
       },
       {
-        user: toUser._id,
+        user: receiver._id,
         type: 'Deposit',
-        currency,
-        amount,
-        toUser: fromUser._id,
-        description: `Received from ${fromUser.email}`,
+        currency: toCurrency,
+        amount: convertedAmount,
+        toUser: sender._id,
+        description: `Received from ${sender.email} (${amount} ${fromCurrency} to ${convertedAmount} ${toCurrency})`,
       },
     ]);
 
-    res.status(200).json({
-      message: `Transferred ${amount} ${currency} to ${toUser.userId}`,
+    res.json({
+      message: 'Transfer successful',
+      from: fromCurrency,
+      to: toCurrency,
+      convertedAmount,
+      charge,
+      senderNewBalance: sender.wallets.reduce((acc, w) => {
+        acc[w.currency] = w.balance;
+        return acc;
+      }, {}),
+      receiverNewBalance: receiver.wallets.reduce((acc, w) => {
+        acc[w.currency] = w.balance;
+        return acc;
+      }, {})
     });
-  } catch (error) {
-    console.error('Error transferring funds:', error);
-    res.status(500).json({ message: 'Internal server error' });
+  } catch (err) {
+    console.error('Transfer error:', err.message);
+    res.status(500).json({ message: 'Server error during transfer', error: err.message });
   }
 };
 
@@ -185,7 +225,7 @@ export const convertCurrency = async (req, res) => {
     }
 
     const fromWallet = user.wallets.find((w) => w.currency === fromCurrency);
-    if (!fromWallet || fromWallet.balance < amount ) {
+    if (!fromWallet || fromWallet.balance < amount) {
       return res.status(400).json({ message: 'Insufficient balance' });
     }
     const apiKey = process.env.EXCHANGE_API_KEY; // Store your key in .env
