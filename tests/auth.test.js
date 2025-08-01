@@ -1,16 +1,15 @@
 import request from 'supertest';
 import app from '../src/app.js';
 
-describe ('Auth API', () => {
+describe('Auth API', () => {
   let token;
 
   beforeAll(async () => {
-    // Register a user and get a JWT token for auth
     const res = await request(app).post('/api/auth/register').send({
       email: 'test@example.com',
-        password: 'password123',
-        firstName: 'Test',
-        lastName: 'User',
+      password: 'password123',
+      firstName: 'Test',
+      lastName: 'User',
     });
     expect(res.statusCode).toBe(201);
     token = res.body.token;

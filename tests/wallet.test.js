@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/app.js'; // adjust path if needed
+import app from '../src/app.js';
 
 describe('Wallet API', () => {
   let token;
@@ -23,19 +23,19 @@ describe('Wallet API', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.message).toMatch(/Deposited/);
   });
-    it('should get wallet balance', async () => {
-        const res = await request(app)
-        .get('/api/wallet/balance')
-        .set('Authorization', `Bearer ${token}`);
-        expect(res.statusCode).toBe(200);
-        expect(res.body).toHaveProperty('balance');
-    });
-    it('should withdraw funds', async () => {
-        const res = await request(app)
-        .post('/api/wallet/withdraw')
-        .set('Authorization', `Bearer ${token}`)
-        .send({ currency: 'USD', amount: 50 });
-        expect(res.statusCode).toBe(200);
-        expect(res.body.message).toMatch(/Withdrawn/);
-    });
+  it('should get wallet balance', async () => {
+    const res = await request(app)
+      .get('/api/wallet/balance')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('balance');
+  });
+  it('should withdraw funds', async () => {
+    const res = await request(app)
+      .post('/api/wallet/withdraw')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currency: 'USD', amount: 50 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toMatch(/Withdrawn/);
+  });
 });

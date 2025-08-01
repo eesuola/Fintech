@@ -3,22 +3,26 @@ import User from '../model/user.js';
 
 export const createDeposit = async (req, res) => {
   const { amount, currency } = req.body;
-  if (!amount || !amount <= 0) {
+  if (!amount || amount <= 0) {
     return res.status(400).json({ message: 'Invalid amount' });
   }
 
   try {
+    //Get User
     const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    const response = await axios.get(
+    console.log('FLW_SECRET_KEY:', process.env.FLW_SECRET_KEY);
+    console.log('FLW_BASE_URL:', process.env.FLW_BASE_URL);
+    //CALLS FLUTTERWAVE TO GENERATE PAYMENT LINK
+    const response = await axios.post(
       `${process.env.FLW_BASE_URL}/payments`,
       {
         tx_ref: `dep_${Date.now()}`,
         amount,
         currency: currency,
-        redirect_url: `${process.env.FRONTEND_URL}/deposit/callback`,
+        redirect_url: 'http://localhost:7070/api/bank/deposit/callback', // Example 2: API server callback
         customer: {
           email: user.email,
           name: user.firstName,
@@ -43,6 +47,7 @@ export const createDeposit = async (req, res) => {
       currency,
       status: 'Pending',
       tx_ref: response.data.data.tx_ref,
+      payment_link: response.data.data.link, // Add this line
     };
 
     res.status(201).json({ message: 'Deposit created successfully', deposit });
@@ -53,6 +58,7 @@ export const createDeposit = async (req, res) => {
 };
 
 export const flutterwaveWebhook = async (req, res) => {
+  // Verify the signature
   const signature = req.headers['verif-hash'];
   if (signature !== process.env.FLW_SECRET_HASH) {
     return res.status(403).json({ message: 'Invalid signature' });
@@ -63,6 +69,8 @@ export const flutterwaveWebhook = async (req, res) => {
     event.data.status === 'successful'
   ) {
     const { customer, amount, currency } = event.data;
+
+    //Find User and update wallet
     const user = await User.findOne({ email: customer.email });
 
     if (user) {
@@ -72,9 +80,8 @@ export const flutterwaveWebhook = async (req, res) => {
       } else {
         user.wallets.push({ currency, balance: amount });
       }
-        await user.save();
-        console.log(`Deposited ${amount} ${currency} to ${user.email}'s wallet`);
-        
+      await user.save();
+      console.log(`Deposited ${amount} ${currency} to ${user.email}'s wallet`);
     }
   }
   res.sendStatus(200);
