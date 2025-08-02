@@ -12,7 +12,7 @@ import authMiddleware from '../middleware/auth.js';
 
 const walletRoutes = express.Router();
 
-walletRoutes.post('/top-up', authMiddleware, deposit);
+walletRoutes.post('/deposit', authMiddleware, deposit);
 walletRoutes.post('/withdraw', authMiddleware, withdraw);
 walletRoutes.get('/balance', authMiddleware, getWallet);
 walletRoutes.post('/transfer', authMiddleware, transfer);
