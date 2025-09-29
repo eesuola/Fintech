@@ -10,7 +10,7 @@ export const transferFund = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Find sender and recipient
+    // Find sender & recipient
     const sender = await User.findById(req.userId);
     const recipient = await User.findOne({ email: recipientEmail });
 
@@ -24,43 +24,45 @@ export const transferFund = async (req, res) => {
       return res.status(400).json({ message: "Insufficient funds" });
     }
 
-    // Get recipient wallet (can be in same or different currency)
+    // Prepare transfer variables
+    let creditAmount = amount;
+    let recipientCurrency = currency;
+
+    // Get recipient wallet
     let recipientWallet = recipient.wallets.find(
       (w) => w.currency === currency
     );
 
-    let creditAmount = amount;
-    let recipientCurrency = currency;
-
-    // If recipient has no wallet in sender’s currency, convert
-    if (!recipientWallet) {
-      recipientCurrency = recipient.countryCurrency
-      const rate = await getExchangeRate(currency, recipientCurrency);
-
-      if (!rate) {
-        return res.status(400).json({ message: "FX conversion not available" });
-      }
-
-      creditAmount = amount * rate;
-
-      // Add a new wallet for recipient
-      recipient.wallets.push({
-        currency: recipientCurrency,
-        balance: creditAmount,
-      });
-    } else {
-      // Same-currency transfer
+    if (recipientWallet) {
       recipientWallet.balance += amount;
+    } else {
+      recipientCurrency = recipient.countryCurrency;
+      if (recipientCurrency === currency) {
+        recipient.wallets.push({ currency, balance: amount });
+      } else {
+        const rate = await getExchangeRate(currency, recipientCurrency);
+        if (!rate) {
+          return res
+            .status(400)
+            .json({ message: "FX conversion not available" });
+        }
+
+        creditAmount = amount * rate;
+        recipient.wallets.push({
+          currency: recipientCurrency,
+          balance: creditAmount,
+        });
+      }
     }
 
     // Deduct from sender
     senderWallet.balance -= amount;
 
-    // Save both users atomically
+    // Save both users
     await sender.save();
     await recipient.save();
 
-    // Log the transfer
+    // Log transaction
     const tx = new Transaction({
       type: "transfer",
       from: sender._id,

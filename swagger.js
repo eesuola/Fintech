@@ -8,11 +8,10 @@ const options = {
     info: {
       title: "Fintech API",
       version: "1.0.0",
-      description: "API documentation for Fintech app with Flutterwave integration",
+      description:
+        "API documentation for Fintech app with Flutterwave integration",
     },
-    servers: [
-      { url: "http://localhost:7070/api" },
-    ],
+    servers: [{ url: "http://localhost:7070/api" }],
     components: {
       securitySchemes: {
         bearerAuth: {

@@ -1,7 +1,8 @@
 import axios from "axios";
 
 export const getExchangeRate = async (from, to) => {
-  try {
+  if (from === to) return 1;
+    try {
     // Example using Flutterwave Rates API
     const response = await axios.get(
       `https://api.flutterwave.com/v3/transfers/rates?amount=100&destination_currency=${to}&source_currency=${from}`,
