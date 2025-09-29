@@ -5,6 +5,7 @@ const { Schema } = mongoose;
 
 const WalletSchema = new Schema({
     balance: { type: Number, default: 0 },
+    currency: { type: String, required: true },
     userId: {
       type: Schema.Types.ObjectId,
       required: true,

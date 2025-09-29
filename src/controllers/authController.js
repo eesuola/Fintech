@@ -1,110 +1,143 @@
-import User from '../model/user.js';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { sanitizeUser } from '../utils/sanitizeUser.js';
-import { parsePhoneNumberFromString, getCountries } from 'libphonenumber-js';
+import User from "../model/user.js";
+import Wallet from "../model/wallet.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { countryCurrencyMap } from "../utils/countryCurrency.js";
+import { getCountryAndCurrencyFromPhone } from "../utils/phoneToCurrency.js";
+import { sanitizeUser } from "../utils/sanitizeUser.js";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 export const registration = async (req, res) => {
   try {
     let { firstName, lastName, email, phoneNumber, password, country } =
       req.body;
 
-    if (
-      !(email && password && firstName && lastName && phoneNumber && country)
-    ) {
-      return res.status(400).json({ message: 'All input is required' });
+    if (!(email && password && firstName && lastName && phoneNumber)) {
+      return res.status(400).json({ message: "All input is required" });
     }
 
     // Normalize inputs
     email = email.toLowerCase().trim();
-    phoneNumber = String(phoneNumber).trim();
 
-    // Validate country code
-    const validCountries = getCountries();
-    if (!validCountries.includes(country)) {
-      return res.status(400).json({ message: 'Invalid country code' });
+    // Parse and normalize phone number
+    const parsedPhone = parsePhoneNumberFromString(
+      phoneNumber,
+      country || "NG"
+    );
+    if (!parsedPhone || !parsedPhone.isValid()) {
+      return res.status(400).json({ error: "Invalid phone number" });
     }
+    const normalizedPhone = parsedPhone.number;
 
-    // Validate phone number
-    const phoneNumberObj = parsePhoneNumberFromString(phoneNumber, country);
-    if (!phoneNumberObj || !phoneNumberObj.isValid()) {
-      return res.status(400).json({ message: 'Invalid phone number format' });
-    }
-    const formattedPhone = phoneNumberObj.format('E.164');
-
-    // Check for existing user
+    // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { phoneNumber: formattedPhone }],
+      $or: [{ email }, { phoneNumber: normalizedPhone }],
     });
     if (existingUser) {
-      return res
-        .status(409)
-        .json({
-          message: 'Email or phone number already exists. Please login.',
-        });
+      return res.status(409).json({
+        message: "Email or phone number already exists. Please login.",
+      });
     }
-    const countryCurrencyMap = {
-      NG: "NGN",
-      US: "USD",
-      UK: "GBP",
-      GM: "GMD",
 
+    // Auto-detect country & currency from phone
+    const { country: detectedCountry, currency } =
+      getCountryAndCurrencyFromPhone(phoneNumber);
+    if (!detectedCountry || !currency) {
+      return res.status(400).json({
+        error: "Could not determine country/currency from phone number",
+      });
     }
-    const walletCurrency = countryCurrencyMap[country] || 'USD'; // Default to USD if country not mapped
 
-    // Create user
-    const user = new User({
+    // Create new user
+    const newUser = new User({
       firstName,
       lastName,
-      email: email.toLowerCase(),
+      email,
       password,
-      country,
-      phoneNumber: formattedPhone,
-      wallets: [{ currency: walletCurrency, balance: 0 }],
+      country: detectedCountry,
+      phoneNumber: normalizedPhone,
+      currency,
     });
-    await user.save(); // ensures pre-save hook runs
+    await newUser.save();
+
+    // Create wallet for user
+    const wallet = new Wallet({
+      userId: newUser._id,
+      currency,
+      balance: 0,
+    });
+    await wallet.save();
 
     // Generate JWT token
     const token = jwt.sign(
-      { user_id: user._id, email },
+      { userId: newUser._id, email: newUser.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
 
-    res.status(201).json({ message: 'User registered successfully', token });
+    return res.status(201).json({
+      message: "User registered successfully",
+      token,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+        country: newUser.country,
+        currency: newUser.currency,
+      },
+      wallet: {
+        id: wallet._id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+      },
+    });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
+    const { loginIdentifier, password } = req.body;
+    if (!loginIdentifier || !password) {
       return res
         .status(400)
-        .json({ success: false, message: 'All fields are required' });
+        .json({ success: false, message: "All fields are required" });
     }
-    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Determine if loginIdentifier is email or phone number
+    let query = {};
+    if (loginIdentifier.includes("@")) {
+      
+      query.email = loginIdentifier.toLowerCase().trim();
+    } else {
+  
+      query.phoneNumber = loginIdentifier.trim();
+    }
+
+    // 3. Find user
+    const user = await User.findOne(query);
     //console.log("User found:", user); // Debug log
     if (!user) {
       return res
         .status(401)
-        .json({ success: false, message: 'Invalid credentials' });
+        .json({ success: false, message: "Invalid credentials" });
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
-    //console.log("Password match:", passwordMatch); // Debug log
+    //console.log("Password match:", passwordMatch); 
     if (!passwordMatch) {
       return res
         .status(401)
-        .json({ success: false, message: 'Invalid credentials' });
+        .json({ success: false, message: "Invalid credentials" });
     }
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email }, // Change user_id to userId
+      { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET,
-      { expiresIn: '2h' }
+      { expiresIn: "2h" }
     );
 
     req.session.loggedIn = true;
@@ -127,14 +160,14 @@ export const logout = (req, res) => {
   try {
     req.session.destroy((err) => {
       if (err) {
-        console.error('Error destroying session:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error("Error destroying session:", err);
+        return res.status(500).json({ error: "Internal server error" });
       }
-      res.status(200).json({ message: 'Logged out successfully' });
+      res.status(200).json({ message: "Logged out successfully" });
     });
   } catch (error) {
-    console.error('Error during logout:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error during logout:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -143,8 +176,8 @@ export const deleteAllUsers = async (req, res) => {
     const result = await User.deleteMany({});
     res.status(200).json({ message: `${result.deletedCount} users deleted` });
   } catch (error) {
-    console.error('Error deleting users:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error deleting users:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -191,13 +224,13 @@ export const getAllUsers = async (req, res) => {
 
 export const getAllNigerianUsers = async (req, res) => {
   try {
-    const nigerianUsers = await User.find({ country: 'Nigeria' });
+    const nigerianUsers = await User.find({ country: "Nigeria" });
     if (!nigerianUsers || nigerianUsers.length === 0) {
-      return res.status(404).json({ message: 'No Nigerian users found' });
+      return res.status(404).json({ message: "No Nigerian users found" });
     }
     res.status(200).json(nigerianUsers);
   } catch (error) {
-    console.error('Error fetching Nigerian users:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching Nigerian users:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

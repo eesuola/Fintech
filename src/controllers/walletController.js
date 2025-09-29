@@ -1,5 +1,6 @@
 import User from '../model/user.js';
 import Transaction from '../model/transaction.js';
+import Wallet from '../model/wallet.js';
 import axios from 'axios';
 
 export const deposit = async (req, res) => {
@@ -170,14 +171,35 @@ export const transfer = async (req, res) => {
 
 export const getWallet = async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.status(200).json(user.wallets);
+    const userId = req.userId;
+    const wallets = await Wallet.find({ userId });
+    res.status(200).json({ wallets }); // Wrap in { wallets: [...] }
   } catch (error) {
-    console.error('Error fetching wallets:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error fetching wallet balance:', error);
+    res.status(500).json({ error: 'Failed to fetch wallet balance' });
+  }
+};
+export const createWallet = async (req, res) => {
+  try {
+    const { currency } = req.body;
+    const userId = req.userId; // From authMiddleware
+
+    if (!currency) {
+      return res.status(400).json({ error: 'Currency is required' });
+    }
+
+    const existingWallet = await Wallet.findOne({ userId, currency });
+    if (existingWallet) {
+      return res.status(400).json({ error: 'Wallet for this currency already exists' });
+    }
+
+    const wallet = new Wallet({ userId, currency, balance: 0 });
+    await wallet.save();
+
+    res.status(201).json({ message: 'Wallet created', wallet });
+  } catch (error) {
+    console.error('Error creating wallet:', error);
+    res.status(500).json({ error: 'Failed to create wallet' });
   }
 };
 
@@ -251,7 +273,7 @@ export const convertCurrency = async (req, res) => {
     }
     await user.save();
     res.status(200).json({
-      message: `Convered successful`,
+      message: `Conversion successful`,
       from: fromCurrency,
       to: toCurrency,
       rateUsed,

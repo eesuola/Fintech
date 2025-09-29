@@ -1,6 +1,7 @@
 import app from './app.js';
 import connectDB from './config/db.js';
 import dotenv from 'dotenv';
+import {swaggerDocs} from "../swagger.js";
 
 //Load Environment Variables
 dotenv.config();
@@ -20,6 +21,8 @@ async function startServer() {
       console.log(`Business running on port ${PORT}`);
       console.log(`Environment: ${NODE_ENV}`);
       console.log(`server URL: http://localhost:${PORT}`);
+      swaggerDocs(app, PORT);
+
     });
     process.once(`SIGTERM`, () => {
       console.log('SIGTERM received, shutting down gracefully');

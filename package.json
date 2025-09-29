@@ -25,7 +25,9 @@
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.10",
     "mongodb": "^6.18.0",
-    "mongoose": "^8.16.4"
+    "mongoose": "^8.16.4",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.0",
