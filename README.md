@@ -67,7 +67,7 @@ npm install
 Create a `.env` file in root:
 
 ```env
-PORT=5000
+PORT=7070
 NODE_ENV=development
 JWT_SECRET=your_jwt_secret
 
@@ -96,7 +96,7 @@ npm run dev
 Swagger docs are available when the server is running.
 
 👉 Visit:
-`http://localhost:5000/api-docs`
+`http://localhost:7070/api-docs`
 
 ---
 

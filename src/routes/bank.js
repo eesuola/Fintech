@@ -6,33 +6,68 @@ import {
 import authMiddleware from "../middleware/auth.js";
 
 const routes = express.Router();
-
 /**
- * @openapi
- * /bank/deposit:
+ * @swagger
+ * /webhook:
  *   post:
+ *     summary: Flutterwave webhook to update wallet on successful deposit
  *     tags:
- *       - Bank
- *     summary: Initiate deposit via Flutterwave
- *     security:
- *       - bearerAuth: []
+ *       - Wallet
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             example:
+ *               event: "charge.completed"
+ *               data:
+ *                 status: "successful"
+ *                 amount: 1000
+ *                 currency: "NGN"
+ *                 tx_ref: "dep_1696000000000"
+ *                 id: "FLW123456"
+ *                 customer:
+ *                   email: "user@example.com"
+ *                   name: "John Doe"
  *     responses:
  *       200:
- *         description: Deposit initialized
+ *         description: Webhook received successfully
+ *       403:
+ *         description: Invalid signature
  */
 routes.post("/deposit", authMiddleware, createDeposit);
-
 /**
- * @openapi
- * /bank/webhook:
+ * @swagger
+ * /webhook:
  *   post:
+ *     summary: Flutterwave webhook to update user wallet on successful payment
  *     tags:
- *       - Webhook
- *     summary: Flutterwave Webhook
- *     description: Called by Flutterwave to confirm transactions
+ *       - Wallet
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             example:
+ *               event: "charge.completed"
+ *               data:
+ *                 status: "successful"
+ *                 amount: 1000
+ *                 currency: "NGN"
+ *                 tx_ref: "dep_1696000000000"
+ *                 id: "FLW123456"
+ *                 customer:
+ *                   email: "user@example.com"
+ *                   name: "John Doe"
  *     responses:
  *       200:
- *         description: Webhook received
+ *         description: Webhook received successfully
+ *       403:
+ *         description: Invalid signature
+ *       500:
+ *         description: Internal server error
  */
 routes.post("/webhook", flutterwaveWebhook);
 

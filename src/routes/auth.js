@@ -28,14 +28,13 @@ const registerLimiter = rateLimit({
 });
 
 const routes = express.Router();
-
 /**
- * @openapi
- * /auth/register:
+ * @swagger
+ * /register:
  *   post:
+ *     summary: Register a new user
  *     tags:
  *       - Auth
- *     summary: Register a new user
  *     requestBody:
  *       required: true
  *       content:
@@ -43,49 +42,61 @@ const routes = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - email
  *               - firstName
  *               - lastName
+ *               - email
  *               - phoneNumber
- *               - country
  *               - password
+ *               - country
  *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
  *               email:
  *                 type: string
- *                 example: user@example.com
+ *               phoneNumber:
+ *                 type: string
  *               password:
  *                 type: string
- *                 example: secret123
+ *               country:
+ *                 type: string
  *     responses:
  *       201:
  *         description: User registered successfully
+ *       400:
+ *         description: Missing or invalid fields
+ *       409:
+ *         description: User already exists
  */
-routes.post("/register", loginLimiter, registration);
 
+routes.post("/register", loginLimiter, registration);
 /**
- * @openapi
- * /auth/login:
+ * @swagger
+ * /login:
  *   post:
+ *     summary: Login user with email or phone number
  *     tags:
  *       - Auth
- *     summary: Login user
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - email
- *               - password
  *             properties:
- *               email:
+ *               identifier:
  *                 type: string
+ *                 description: Email or phone number
  *               password:
  *                 type: string
  *     responses:
  *       200:
  *         description: Login successful
+ *       400:
+ *         description: Missing fields
+ *       401:
+ *         description: Invalid credentials
  */
 routes.post("/login", registerLimiter, logLoginAttempt, login);
 
@@ -130,6 +141,17 @@ routes.get("/getAllUsers", authMiddleware, getAllUsers);
  *         description: List of Nigerian users
  */
 routes.get("/getAllNigerianUsers", authMiddleware, getAllNigerianUsers);
+/**
+ * @swagger
+ * /logout:
+ *   post:
+ *     summary: Logout the user
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: User logged out successfully
+ */
 routes.post("/logout", authMiddleware, getAllNigerianUsers);
 
 export default routes;

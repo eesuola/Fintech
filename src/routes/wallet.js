@@ -58,17 +58,36 @@ walletRoutes.post("/withdraw", authMiddleware, withdraw);
  */
 walletRoutes.get("/balance", authMiddleware, getWallet);
 /**
- * @openapi
+ * @swagger
  * /wallet/transfer:
  *   post:
+ *     summary: Transfer funds to another user
  *     tags:
  *       - Wallet
- *     summary: Transfer funds between wallets
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               recipientIdentifier:
+ *                 type: string
+ *                 description: Email or phone number of recipient
+ *                 example: jane@example.com
+ *               amount:
+ *                 type: number
+ *                 example: 500
+ *               currency:
+ *                 type: string
+ *                 example: NGN
  *     responses:
  *       200:
  *         description: Transfer successful
+ *       400:
+ *         description: Insufficient balance or invalid recipient
  */
 walletRoutes.post("/transfer", authMiddleware, transfer);
 /**
