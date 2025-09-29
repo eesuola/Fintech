@@ -1,25 +1,27 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
 const TransactionSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   type: {
     type: String,
-    enum: ['Deposit', 'Transfer', 'Withdraw'],
+    enum: ["deposit", "withdraw", "transfer"],
     required: true,
   },
-  amount: { type: Number, required: true },
-  currency: { type: String, required: true },
-  toUser: { type: Schema.Types.ObjectId, ref: 'User' },
-  description: { type: String },
+  from: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  to: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  amount: Number,
+  debitCurrency: String,
+  creditCurrency: String,
+  creditAmount: Number,
   status: {
     type: String,
-    enum: ['Pending', 'Completed', 'Failed'],
-    default: 'Pending',
+    enum: ["pending", "successful", "failed"],
+    default: "pending",
   },
+  tx_ref: { type: String, unique: true },
   createdAt: { type: Date, default: Date.now },
 });
 
-const Transaction = mongoose.model('Transaction', TransactionSchema);
+const Transaction = mongoose.model("Transaction", TransactionSchema);
 export default Transaction;

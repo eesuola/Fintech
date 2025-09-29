@@ -3,9 +3,7 @@ import {
   createWallet,
   getWallet,
   withdraw,
-  transfer,
   getTransactions,
-  convertCurrency,
 } from "../controllers/walletController.js";
 
 import express from "express";
@@ -89,36 +87,9 @@ walletRoutes.get("/balance", authMiddleware, getWallet);
  *       400:
  *         description: Insufficient balance or invalid recipient
  */
-walletRoutes.post("/transfer", authMiddleware, transfer);
-/**
- * @openapi
- * /wallet/transactions:
- *   get:
- *     tags:
- *       - Wallet
- *     summary: Get wallet transactions
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of transactions
- */
+
 walletRoutes.get("/transactions", authMiddleware, getTransactions);
 
-/**
- * @openapi
- * /wallet/convert:
- *   post:
- *     tags:
- *       - Wallet
- *     summary: Convert currency
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Conversion successful
- */
-walletRoutes.post("/convert", authMiddleware, convertCurrency);
 /**
  * @openapi
  * /wallet/create:

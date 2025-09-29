@@ -5,6 +5,7 @@ import session from "express-session";
 import authRoutes from "./routes/auth.js";
 import walletRoutes from "./routes/wallet.js";
 import bankRoutes from "./routes/bank.js";
+import transferRoutes from "./routes/transfer.js";
 import { swaggerDocs } from "../swagger.js";
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/bank", bankRoutes);
+app.use("/api/transfer", transferRoutes);
 swaggerDocs(app);
 
 app.get("/health", (req, res) => {

@@ -68,16 +68,9 @@ export const registration = async (req, res) => {
     });
     await wallet.save();
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
 
     return res.status(201).json({
       message: "User registered successfully",
-      token,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,

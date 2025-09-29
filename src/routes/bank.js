@@ -1,9 +1,10 @@
-import express from "express";
+import express, { Router } from "express";
 import {
   createDeposit,
   flutterwaveWebhook,
 } from "../controllers/bankController.js";
 import authMiddleware from "../middleware/auth.js";
+import { getWallet } from "../controllers/walletController.js";
 
 const routes = express.Router();
 /**
@@ -84,10 +85,8 @@ routes.post("/webhook", flutterwaveWebhook);
  *         description: Redirect success message
  */
 // Add this callback route for Flutterwave redirect
-routes.get("/deposit/callback", (req, res) => {
-  res.send(
-    "Payment completed! You can now close this window or return to the app."
-  );
-});
+
+
+
 
 export default routes;
